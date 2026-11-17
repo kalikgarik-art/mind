@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Mind — profile, license key and HWID management." />
+  <meta name="theme-color" content="#0a0a0c" />
+  <title>Mind — Profile</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%238b5cf6'/%3E%3Cstop offset='1' stop-color='%2306b6d4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0c'/%3E%3Crect x='1' y='1' width='30' height='30' rx='7' fill='none' stroke='url(%23g)' stroke-opacity='.55'/%3E%3Cpath d='M9 23V9l7 9 7-9v14' fill='none' stroke='url(%23g)' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { void: "#0a0a0c", coal: "#0e0e13", accent: "#8b5cf6", aqua: "#06b6d4" },
+          fontFamily: { sans: ["Plus Jakarta Sans", "sans-serif"], mono: ["JetBrains Mono", "monospace"] },
+        },
+      },
+    };
+  </script>
+  <link rel="stylesheet" href="assets/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="assets/config.js"></script>
+  <script src="assets/common.js"></script>
+</head>
+<body class="relative min-h-screen overflow-x-hidden">
+
+  <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-void" aria-hidden="true">
+    <div class="bg-grid mask-top absolute inset-0 opacity-70"></div>
+    <div class="anim-float-slow absolute -top-40 left-[8%] h-[30rem] w-[30rem] rounded-full bg-accent/15 blur-[140px]"></div>
+    <div class="anim-float absolute top-[46%] right-[-8%] h-[26rem] w-[26rem] rounded-full bg-aqua/10 blur-[150px]" style="animation-delay:1.6s"></div>
+  </div>
+
+  <!-- digital rain -->
+  <canvas id="rain" class="rain-canvas" aria-hidden="true"></canvas>
+
+  <!-- navbar -->
+  <header id="nav" class="fixed inset-x-0 top-0 z-50 border-b border-white/[0.07] bg-void/80 backdrop-blur-2xl">
+    <div class="mx-auto flex h-16 max-w-5xl items-center justify-between px-5 sm:px-8">
+      <a href="index.html" class="group flex items-center gap-2.5">
+        <span class="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-accent to-aqua shadow-lg transition-transform duration-300 group-hover:rotate-6"><i data-lucide="brain" class="h-[18px] w-[18px] text-white"></i></span>
+        <span class="text-lg font-extrabold tracking-tight text-white">Mind</span>
+        <span class="mono rounded-md border border-white/15 bg-white/[0.04] px-1.5 py-0.5 text-[9px] font-bold text-white/50">PROFILE</span>
+      </a>
+      <div class="flex items-center gap-2.5">
+        <a href="index.html" class="btn-g !px-4 !py-2 !text-[12.5px]"><i data-lucide="arrow-left" class="h-3.5 w-3.5"></i>Main page</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="relative mx-auto max-w-6xl px-4 pt-28 pb-24 sm:px-8">
+
+    <!-- gate: not signed in -->
+    <section id="gate" class="hidden">
+      <div class="anim-modal mx-auto max-w-md rounded-3xl border border-white/10 bg-coal p-10 text-center shadow-2xl">
+        <span class="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-accent to-aqua shadow-lg"><i data-lucide="lock" class="h-6 w-6 text-white"></i></span>
+        <h1 class="mt-5 text-2xl font-extrabold text-white">Sign in required</h1>
+        <p class="mt-2 text-sm leading-relaxed text-white/45">Your license key, subscription status and HWID live behind your account.</p>
+        <a href="index.html#auth" class="btn-p mt-7 w-full !rounded-xl">Sign in on the main page</a>
+      </div>
+    </section>
+
+    <!-- app: signed in -->
+    <section id="app" class="hidden space-y-5">
+      <!-- user header -->
+      <div class="card flex flex-wrap items-center gap-4 p-6">
+        <span id="u-avatar" class="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-accent to-aqua text-xl font-extrabold text-white shadow-[0_10px_30px_-8px_rgba(139,92,246,0.8)]">?</span>
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <h1 id="u-name" class="truncate text-lg font-extrabold text-white">…</h1>
+            <span id="u-role" class="chip chip-dim">USER</span>
+          </div>
+          <p id="u-email" class="mono mt-1 truncate text-[12px] text-white/45">…</p>
+        </div>
+        <button id="logout-btn" class="flex items-center gap-2 rounded-full border border-white/10 px-4 py-2.5 text-[12px] font-bold text-white/55 transition hover:border-rose-400/40 hover:text-rose-300">
+          <i data-lucide="log-out" class="h-4 w-4"></i>Logout
+        </button>
+      </div>
+
+      <div class="grid gap-4 sm:grid-cols-2">
+        <!-- subscription -->
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <p class="label !mb-0">Subscription</p>
+            <i data-lucide="crown" class="h-4 w-4 text-white/20"></i>
+          </div>
+          <div class="mt-4 flex items-center gap-2.5">
+            <span id="sub-dot" class="h-2 w-2 rounded-full bg-rose-400"></span>
+            <span id="sub-status" class="text-lg font-extrabold text-rose-300">Inactive</span>
+            <span id="sub-plan" class="mono ml-auto text-[10px] uppercase tracking-[0.16em] text-white/35"></span>
+          </div>
+          <p id="sub-exp" class="mono mt-2 text-[11px] text-white/40">—</p>
+          <div id="sub-bar-wrap" class="mt-3 hidden h-1.5 overflow-hidden rounded-full bg-white/[0.07]"><div id="sub-bar" class="h-full w-0 rounded-full bg-gradient-to-r from-accent to-aqua transition-[width] duration-700"></div></div>
+          <div id="activate-wrap" class="mt-5 rounded-2xl border border-accent/25 bg-accent/[0.05] p-3.5">
+            <label for="activate-key" class="label">Activate License Key</label>
+            <div class="flex flex-col gap-2 sm:flex-row">
+              <input id="activate-key" class="input mono min-w-0 flex-1 uppercase" placeholder="MIND-XXXX-XXXX-XXXX" maxlength="24" autocomplete="off" spellcheck="false" />
+              <button id="activate-btn" class="btn-p shrink-0 !rounded-xl !px-5 !py-3 !text-[12px]"><i data-lucide="key-round" class="h-4 w-4"></i>Activate</button>
+            </div>
+            <p class="mono mt-2 text-[9.5px] leading-relaxed text-white/30">Only a real, unused key from the Supabase keys table can be activated.</p>
+          </div>
+        </div>
+
+        <!-- license key -->
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <p class="label !mb-0">License key</p>
+            <i data-lucide="key-round" class="h-4 w-4 text-white/20"></i>
+          </div>
+          <div id="key-box" class="mt-4 hidden items-center gap-2 rounded-xl border border-white/10 bg-black/40 px-3.5 py-3">
+            <code id="key-field" class="mono min-w-0 flex-1 truncate text-[13px] font-bold tracking-wider text-white">MIND-••••-••••-••••</code>
+            <button id="key-reveal" aria-label="Reveal key" class="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/40 transition hover:bg-white/5 hover:text-white"><i data-lucide="eye" class="h-3.5 w-3.5"></i></button>
+            <button id="key-copy" aria-label="Copy key" class="grid h-7 w-7 shrink-0 place-items-center rounded-md text-white/40 transition hover:bg-white/5 hover:text-white"><i data-lucide="copy" class="h-3.5 w-3.5"></i></button>
+          </div>
+          <div id="key-empty" class="mt-4 rounded-xl border border-dashed border-white/12 bg-white/[0.015] px-4 py-6 text-center">
+            <i data-lucide="key-round" class="mx-auto h-5 w-5 text-white/20"></i>
+            <p class="mt-2 text-[12px] font-semibold text-white/45">No key yet</p>
+            <p class="text-[10.5px] text-white/25">Enter a key in Activate License Key</p>
+          </div>
+          <p id="key-meta" class="mono mt-2.5 hidden text-[9.5px] text-white/30"></p>
+        </div>
+
+        <!-- hwid -->
+        <div class="card">
+          <div class="flex items-center justify-between">
+            <p class="label !mb-0">HWID</p>
+            <i data-lucide="cpu" class="h-4 w-4 text-white/20"></i>
+          </div>
+          <div class="mt-4 flex items-center gap-2.5">
+            <span id="hwid-dot" class="h-2 w-2 rounded-full bg-white/20"></span>
+            <span id="hwid-val" class="mono text-[13px] font-bold text-white">Not bound</span>
+          </div>
+          <p id="hwid-device" class="mono mt-1.5 text-[10px] text-white/35">Device binds automatically on first client launch</p>
+          <button id="hwid-reset" class="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-2.5 text-xs font-bold text-white/60 transition hover:border-amber-400/40 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-40">
+            <i data-lucide="refresh-ccw" class="h-3.5 w-3.5"></i>Reset HWID
+          </button>
+        </div>
+
+        <!-- download -->
+        <div class="card flex flex-col">
+          <div class="flex items-center justify-between">
+            <p class="label !mb-0">Client</p>
+            <i data-lucide="download" class="h-4 w-4 text-white/20"></i>
+          </div>
+          <p class="mt-4 text-[13px] font-bold text-white">Mind for Windows</p>
+          <p class="mono mt-1 text-[10px] text-white/35">v3.2.1 · 14.6 MB · x64</p>
+          <div class="flex-1"></div>
+          <button id="dl-profile" class="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 py-3 text-xs font-bold text-white/30 transition-all duration-300" disabled>
+            <i data-lucide="lock" class="h-3.5 w-3.5"></i><span id="dl-profile-label">Locked — key required</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ============ DEVELOPER PANEL ============ -->
+      <section id="admin" class="hidden">
+        <div class="relative overflow-hidden rounded-3xl border border-accent/40 bg-gradient-to-b from-accent/[0.08] to-white/[0.015] p-4 shadow-[0_30px_90px_-30px_rgba(139,92,246,0.5)] sm:p-8">
+          <div class="decor-layer absolute -top-20 right-0 h-48 w-72 rounded-full bg-accent/20 blur-[100px]"></div>
+          <div class="ui-layer">
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-accent to-aqua shadow-lg"><i data-lucide="terminal" class="h-5 w-5 text-white"></i></span>
+              <div class="min-w-0 flex-1">
+                <h2 class="text-base font-extrabold text-white sm:text-lg">Developer Panel <span class="text-gradient">(Faraonov)</span></h2>
+                <p class="mono text-[8.5px] uppercase tracking-[0.18em] text-white/35 sm:text-[9.5px] sm:tracking-[0.22em]">server protected · kalikgarik@mail.ru</p>
+              </div>
+              <span id="admin-backend" class="mono hidden items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[9px] font-bold tracking-[0.14em] text-white/40 sm:flex">…</span>
+              <span id="keys-count" class="chip chip-dim">0 keys</span>
+            </div>
+
+            <div class="mt-6 flex flex-col gap-2 rounded-2xl border border-white/[0.08] bg-black/25 p-1.5 sm:flex-row">
+              <button id="admin-tab-management" class="admin-tab flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-accent/80 to-aqua/80 px-4 py-3 text-[12px] font-bold text-white"><i data-lucide="key-round" class="h-4 w-4"></i>Keys &amp; Users</button>
+              <button id="admin-tab-docs" class="admin-tab flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-[12px] font-bold text-white/45 transition hover:bg-white/[0.05] hover:text-white"><i data-lucide="book-open" class="h-4 w-4"></i>Docs &amp; Setup Guide</button>
+            </div>
+
+            <!-- TAB 1: key and user management -->
+            <div id="admin-management" class="mt-5 space-y-4">
+              <div class="rounded-2xl border border-white/[0.08] bg-black/25 p-4 sm:p-5">
+                <p class="label">Generate real key</p>
+                <div class="flex flex-col gap-2.5 sm:flex-row">
+                  <select id="gen-days" class="input min-w-0 flex-1">
+                    <option value="7">7 days</option>
+                    <option value="30" selected>30 days</option>
+                    <option value="lifetime">Lifetime</option>
+                  </select>
+                  <button id="gen-btn" class="btn-p w-full shrink-0 !rounded-xl !px-5 !py-3 !text-[12px] sm:w-auto"><i data-lucide="sparkles" class="h-4 w-4"></i>Generate Key</button>
+                </div>
+                <p class="mono mt-2.5 text-[9.5px] leading-relaxed text-white/25">The key is inserted into Supabase with created_by = your authenticated user ID. RLS rejects this request for every other account.</p>
+              </div>
+
+              <div class="grid gap-4 xl:grid-cols-2">
+                <div class="overflow-hidden rounded-2xl border border-white/[0.08] bg-black/25">
+                  <div class="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5 sm:px-5">
+                    <p class="label !mb-0">All license keys</p>
+                    <button id="keys-refresh" class="flex items-center gap-1.5 text-[11px] font-bold text-white/40 transition hover:text-white"><i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>Refresh</button>
+                  </div>
+                  <div class="max-h-[390px] overflow-auto">
+                    <table class="w-full min-w-[540px] text-left">
+                      <thead class="sticky top-0 z-10 bg-coal/95 backdrop-blur">
+                        <tr class="mono text-[9px] uppercase tracking-[0.18em] text-white/25">
+                          <th class="px-4 py-2.5 font-semibold">Key</th>
+                          <th class="px-2 py-2.5 font-semibold">Term</th>
+                          <th class="px-2 py-2.5 font-semibold">Status</th>
+                          <th class="px-4 py-2.5 text-right font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="keys-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="overflow-hidden rounded-2xl border border-white/[0.08] bg-black/25">
+                  <div class="flex items-center justify-between border-b border-white/[0.06] px-4 py-3.5 sm:px-5">
+                    <p class="label !mb-0">Registered users</p>
+                    <button id="users-refresh" class="flex items-center gap-1.5 text-[11px] font-bold text-white/40 transition hover:text-white"><i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>Refresh</button>
+                  </div>
+                  <div class="max-h-[390px] overflow-auto">
+                    <table class="w-full min-w-[580px] text-left">
+                      <thead class="sticky top-0 z-10 bg-coal/95 backdrop-blur">
+                        <tr class="mono text-[9px] uppercase tracking-[0.18em] text-white/25">
+                          <th class="px-4 py-2.5 font-semibold">User</th>
+                          <th class="px-2 py-2.5 font-semibold">License</th>
+                          <th class="px-2 py-2.5 font-semibold">HWID</th>
+                          <th class="px-4 py-2.5 text-right font-semibold">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody id="users-body"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TAB 2: built-in documentation -->
+            <div id="admin-docs" class="mt-5 hidden space-y-5">
+              <!-- ===== Архитектура ===== -->
+              <div class="rounded-2xl border border-aqua/20 bg-aqua/[0.04] p-5 sm:p-6">
+                <p class="label text-aqua">Документация · архитектура</p>
+                <h3 class="text-xl font-extrabold text-white">Как устроен сайт Mind</h3>
+                <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div class="rounded-xl border border-white/[0.07] bg-black/25 p-4"><i data-lucide="files" class="h-5 w-5 text-accent"></i><p class="mt-3 text-[12px] font-bold text-white">Статический фронтенд</p><p class="mt-1 text-[11px] leading-relaxed text-white/40">index.html и profile.html: Tailwind CDN + чистый JS. Сборка не нужна — папка deploy/ публикуется как есть.</p></div>
+                  <div class="rounded-xl border border-white/[0.07] bg-black/25 p-4"><i data-lucide="shield-check" class="h-5 w-5 text-aqua"></i><p class="mt-3 text-[12px] font-bold text-white">Supabase Auth</p><p class="mt-1 text-[11px] leading-relaxed text-white/40">Email и пароль проверяет сервер Supabase. Браузер получает JWT-сессию; пароли не хранятся в таблицах сайта.</p></div>
+                  <div class="rounded-xl border border-white/[0.07] bg-black/25 p-4"><i data-lucide="database" class="h-5 w-5 text-emerald-400"></i><p class="mt-3 text-[12px] font-bold text-white">Postgres + RLS</p><p class="mt-1 text-[11px] leading-relaxed text-white/40">Таблицы profiles и keys защищены политиками. Активация ключа — атомарная функция activate_license_key().</p></div>
+                </div>
+              </div>
+
+              <!-- ===== SMTP Resend ===== -->
+              <article class="rounded-2xl border border-white/[0.08] bg-black/25 p-5 sm:p-6">
+                <p class="label">Шаг 1 · Custom SMTP (Resend)</p>
+                <h3 class="text-base font-extrabold text-white">Убираем ошибку «email rate limit exceeded»</h3>
+                <ol class="mt-3 space-y-2.5 text-[12px] leading-relaxed text-white/50 list-decimal pl-5">
+                  <li>Зарегистрируйтесь на <span class="mono text-aqua">resend.com</span> → раздел <span class="mono text-white/70">API Keys</span> → создайте ключ (начинается с <span class="mono text-white/70">re_</span>).</li>
+                  <li>В Supabase откройте <span class="mono text-white/70">Project Settings → Authentication → SMTP Settings</span>.</li>
+                  <li>Включите SMTP и заполните поля:</li>
+                </ol>
+                <pre class="mt-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-black/50 p-4 text-[10.5px] leading-relaxed text-white/60"><code>Host:     smtp.resend.com
+Port:     465
+Username: resend
+Password: &lt;API-ключ Resend, начинается с re_&gt;
+Sender:   no-reply@ваш-домен.ru  (или адрес onboarding Resend)</code></pre>
+                <p class="mt-3 text-[11.5px] leading-relaxed text-white/40">Нажмите <span class="text-white/70">Save</span>. После этого письма уходят через Resend и лимиты встроенной почты Supabase больше не срабатывают.</p>
+              </article>
+
+              <!-- ===== 6-digit codes ===== -->
+              <article class="rounded-2xl border border-white/[0.08] bg-black/25 p-5 sm:p-6">
+                <p class="label">Шаг 2 · 6-значные коды в письмах</p>
+                <h3 class="text-base font-extrabold text-white">Замена ссылки на код в шаблонах</h3>
+                <p class="mt-3 text-[12px] leading-relaxed text-white/50">Сайт ждет <span class="mono text-white/70">6-значный код</span> (экран OTP), а не переход по ссылке. Откройте <span class="mono text-white/70">Authentication → Emails → Templates</span> и отредактируйте два шаблона:</p>
+                <div class="mt-3 space-y-3">
+                  <div class="rounded-xl border border-white/[0.07] bg-black/50 p-4">
+                    <p class="mono text-[10.5px] font-bold text-accent">Confirm signup</p>
+                    <pre class="mt-2 overflow-x-auto text-[10.5px] leading-relaxed text-white/60"><code>Ваш код подтверждения: {{ .Token }}
+
+Код действует 24 часа. Если это были не вы —
+проигнорируйте письмо.</code></pre>
+                    <p class="mt-2 text-[10.5px] text-white/35">Вместо <span class="mono text-white/60">{{ .ConfirmationURL }}</span> используется <span class="mono text-white/70">{{ .Token }}</span>.</p>
+                  </div>
+                  <div class="rounded-xl border border-white/[0.07] bg-black/50 p-4">
+                    <p class="mono text-[10.5px] font-bold text-accent">Reset Password</p>
+                    <pre class="mt-2 overflow-x-auto text-[10.5px] leading-relaxed text-white/60"><code>Код для сброса пароля: {{ .Token }}
+
+Введите его на сайте в форме восстановления.</code></pre>
+                  </div>
+                </div>
+                <p class="mt-3 text-[11.5px] leading-relaxed text-white/40">Для работы OTP-ввода включите подтверждение: <span class="mono text-white/70">Authentication → Providers → Email → Confirm email = ON</span>. Если хотите мгновенный вход без кода — выключите эту настройку, сайт покажет письмо-подсказку.</p>
+              </article>
+
+              <!-- ===== Hosting URLs ===== -->
+              <article class="rounded-2xl border border-white/[0.08] bg-black/25 p-5 sm:p-6">
+                <p class="label">Шаг 3 · Публикация на бесплатный хостинг</p>
+                <h3 class="text-base font-extrabold text-white">Cloudflare Pages / Vercel / Netlify</h3>
+                <ol class="mt-3 space-y-2.5 text-[12px] leading-relaxed text-white/50 list-decimal pl-5">
+                  <li>Загрузите содержимое папки <span class="mono text-aqua">deploy/</span> в репозиторий GitHub (index.html и profile.html — в корне).</li>
+                  <li>Подключите репозиторий: Cloudflare Pages → Create → Pages → Connect to Git; Vercel → Add New → Project; Netlify → Add new site → Import from Git.</li>
+                  <li>Build command: <span class="mono text-white/70">(пусто)</span>, Output directory: <span class="mono text-white/70">.</span> (статический сайт без сборки).</li>
+                  <li>Получите адрес сайта, например <span class="mono text-white/70">https://mind.pages.dev</span>.</li>
+                  <li>В Supabase: <span class="mono text-white/70">Authentication → URL Configuration</span> → заполните:</li>
+                </ol>
+                <pre class="mt-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-black/50 p-4 text-[10.5px] leading-relaxed text-white/60"><code>Site URL:      https://ваш-домен.ru
+Redirect URLs: https://ваш-домен.ru/**
+               https://ваш-домен.ru/profile.html
+               http://localhost:8080/**   (локальная разработка)</code></pre>
+                <p class="mt-3 text-[11.5px] leading-relaxed text-white/40">Синхронизируйте дату и время с шаблонов писем: без правильных URL ссылки и редиректы работать не будут.</p>
+              </article>
+
+              <!-- ===== Auto-issue architecture ===== -->
+              <article class="rounded-2xl border border-accent/25 bg-accent/[0.05] p-5 sm:p-6">
+                <p class="label">Шаг 4 · Автовыдача ключей</p>
+                <h3 class="text-base font-extrabold text-white">Архитектура оплаты и генерации MIND-ключей</h3>
+                <div class="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div class="rounded-xl border border-white/[0.07] bg-black/25 p-4">
+                    <p class="mono text-[10px] font-bold text-accent">plans</p>
+                    <p class="mt-1.5 text-[11px] leading-relaxed text-white/45">Тарифы: id, title, duration_days, price_usd. Сейчас живут в <span class="mono text-white/60">assets/plansConfig.js</span> — структура один в один повторяет будущую таблицу Supabase.</p>
+                  </div>
+                  <div class="rounded-xl border border-white/[0.07] bg-black/25 p-4">
+                    <p class="mono text-[10px] font-bold text-aqua">payment_methods</p>
+                    <p class="mt-1.5 text-[11px] leading-relaxed text-white/45">Способы оплаты: id, title, provider, enabled. Сейчас <span class="mono text-white/60">assets/paymentMethods.js</span> (cards_ru, cards_global, crypto).</p>
+                  </div>
+                  <div class="rounded-xl border border-white/[0.07] bg-black/25 p-4">
+                    <p class="mono text-[10px] font-bold text-emerald-400">license_keys → таблица keys</p>
+                    <p class="mt-1.5 text-[11px] leading-relaxed text-white/45">key_code, duration_days, is_used, used_by, used_at, created_by. Генерируется в формате MIND-XXXX-XXXX-XXXX.</p>
+                  </div>
+                </div>
+                <p class="mt-4 text-[12px] leading-relaxed text-white/50"><span class="text-white/75">Схема работы:</span> клиент вызывает <span class="mono text-aqua">handleCheckout({ planId, paymentMethodId })</span> → запрос уходит в <span class="mono text-aqua">CHECKOUT_ENDPOINT</span> (Supabase Edge Function) → функция создаёт платёж у провайдера (ЮKassa / Stripe / крипто) → после успешной оплаты провайдер шлёт <span class="mono text-white/70">webhook</span> в Edge Function → функция генерирует ключ (crypto.getRandomValues), делает INSERT в <span class="mono text-white/70">keys</span> и обновляет <span class="mono text-white/70">profiles</span> (service_role) → клиенту возвращается <span class="mono text-white/70">{ key }</span> и показывается окно с ключом.</p>
+                <pre class="mt-3 overflow-x-auto rounded-xl border border-white/[0.08] bg-black/50 p-4 text-[10.5px] leading-relaxed text-white/60"><code>POST CHECKOUT_ENDPOINT
+{
+  "planId": "month",
+  "durationDays": 30,
+  "priceUSD": 5.99,
+  "paymentMethodId": "cards_ru",
+  "paymentProvider": "yookassa",
+  "email": "user@example.com",
+  "userId": "uuid"
+}
+→ 200 { "key": "MIND-A7K2-XQ9P-LM4D" }</code></pre>
+                <p class="mt-3 text-[11.5px] leading-relaxed text-white/40">Пока эндпоинт не подключён, вы (разработчик) можете выдать себе тестовый ключ прямо на сайте — работает защищённая RPC-функция <span class="mono text-white/70">issue_license_key(email, key, days)</span>. Обычным пользователям в этом режиме показывается честное сообщение «provider not connected», без имитации покупки.</p>
+              </article>
+
+              <div class="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] p-5">
+                <p class="text-[12px] font-bold text-amber-200">Чек-лист безопасности</p>
+                <ul class="mt-3 space-y-2 text-[11px] leading-relaxed text-white/45">
+                  <li>• В config.js — только публичный anon/publishable key. Никогда не публикуйте service_role или пароль БД.</li>
+                  <li>• Видимость панели в интерфейсе — только удобство; настоящая авторизация делается в RLS по JWT-Email.</li>
+                  <li>• Пользователь не может менять role, license_key и expires_at — права на колонки отозваны (обновляется только hwid).</li>
+                  <li>• Активация ключа идёт через SELECT ... FOR UPDATE — один ключ нельзя получить дважды.</li>
+                  <li>• Регулярно обновляйте шаблоны писем и логин-URL после каждого нового домена.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <p class="pt-2 text-center font-mono text-[9.5px] uppercase tracking-[0.18em] text-white/20" id="backend-note">…</p>
+    </section>
+  </main>
+
+  <!-- ======================= INTRO / PRELOADER ======================= -->
+  <div id="intro" class="intro-overlay" aria-hidden="true">
+    <div class="intro-half intro-top"></div>
+    <div class="intro-half intro-bottom"></div>
+    <div class="intro-grid"></div>
+    <div class="intro-hud">
+      <i class="hud-corner hud-c-tl"></i>
+      <i class="hud-corner hud-c-tr"></i>
+      <i class="hud-corner hud-c-bl"></i>
+      <i class="hud-corner hud-c-br"></i>
+      <span class="hud-mark hud-tl">v2.6 // INITIALIZING</span>
+      <span class="hud-mark hud-tr">SYS.MIND &middot; 0x8B5CF6</span>
+      <span class="hud-mark hud-bl">LAT 55.7512 &middot; LON 37.6156</span>
+      <span class="hud-mark hud-br">MODULES 128/128</span>
+    </div>
+    <div class="intro-core">
+      <div class="intro-rings">
+        <span class="intro-ring r1"></span>
+        <span class="intro-ring r2"></span>
+        <span class="intro-ring r3"></span>
+      </div>
+      <svg class="intro-logo" viewBox="0 0 32 32" role="img" aria-label="Mind">
+        <defs>
+          <linearGradient id="introG" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#a78bfa"/>
+            <stop offset="0.5" stop-color="#8b5cf6"/>
+            <stop offset="1" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <path d="M9 23V9l7 9 7-9v14" fill="none" stroke="url(#introG)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p class="intro-word">Mind</p>
+      <p class="intro-sub">Profile</p>
+      <div class="intro-meta">
+        <span data-intro-status>Loading core modules...</span>
+        <span class="intro-pct" data-intro-pct>0%</span>
+      </div>
+      <div class="intro-bar"><i data-intro-bar></i></div>
+    </div>
+  </div>
+  <script src="assets/profile.js"></script>
+</body>
+</html>
